@@ -1,0 +1,5 @@
+usqlCodeBehindGenerated/
+.vscode/
+.job/
+localrunmetadata
+*_settings.json

@@ -1,0 +1,32 @@
+DECLARE @get_hash Func<string,System.Security.Cryptography.HashAlgorithm,string> =
+     (raw_value, hasher) => hasher.ComputeHash(Encoding.UTF8.GetBytes(raw_value)) // Encoding has to match what was computed in the source
+                                  .Select(item => item.ToString("x2")) // This coverts each byte to hex strings, lowercase
+                                  .Aggregate((a, b) => a + b); // Join the strings to a long one
+
+// Short-hand functions for MD5 
+DECLARE @md5    = System.Security.Cryptography.MD5.Create();
+DECLARE @get_md5 Func<string,string> =
+    (raw_value) => @get_hash(raw_value, @md5);
+// Other hashes are available in Security.Cryptography
+// There doesnt seem to be CRC algorithms in the standard library however
+
+
+@ex = 
+    EXTRACT id int,
+    vchar string,
+    chr string,
+    ver int,
+    curr string,
+    checksum string
+    FROM "/hashview.csv"
+    USING Extractors.Csv();
+
+@ax = 
+    SELECT checksum,
+    @get_md5(String.Concat(id, vchar, chr, ver, curr)) AS usqlchecksum // Concatention has to be done the same way as in source
+    FROM @ex;
+
+
+OUTPUT @ax
+    TO "/output.csv" // Manual comparsion of hashes for now
+USING Outputters.Csv();
