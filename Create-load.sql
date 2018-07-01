@@ -24,4 +24,8 @@ CREATE OR REPLACE VIEW hashview AS
     FROM "datatable";
 
 -- Replace with your local usql-root, or upload csv file to Data Lake Store
-COPY (SELECT * FROM hashview) TO 'c:/local/path/hashview.csv' DELIMITER ',' FORCE_QUOTE *;
+COPY (SELECT * FROM hashview)
+    TO 'c:/repo/github/DataConsistency/hashview.csv' DELIMITER ',' FORCE_QUOTE *;
+
+COPY (SELECT md5(array_to_string(array(SELECT checksum FROM hashview), '')))
+    TO 'c:/repo/github/DataConsistency/masterhash.csv';

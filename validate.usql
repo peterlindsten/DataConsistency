@@ -3,7 +3,7 @@ DECLARE @get_hash Func<string,System.Security.Cryptography.HashAlgorithm,string>
                                   .Select(item => item.ToString("x2")) // This coverts each byte to hex strings, lowercase
                                   .Aggregate((a, b) => a + b); // Join the strings to a long one
 
-// Short-hand functions for MD5 
+// Short-hand functions for MD5
 DECLARE @md5    = System.Security.Cryptography.MD5.Create();
 DECLARE @get_md5 Func<string,string> =
     (raw_value) => @get_hash(raw_value, @md5);
@@ -11,7 +11,7 @@ DECLARE @get_md5 Func<string,string> =
 // There doesnt seem to be CRC algorithms in the standard library however
 
 
-@ex = 
+@ex =
     EXTRACT id int,
     vchar string,
     chr string,
@@ -21,7 +21,7 @@ DECLARE @get_md5 Func<string,string> =
     FROM "/hashview.csv"
     USING Extractors.Csv();
 
-@ax = 
+@ax =
     SELECT checksum,
     @get_md5(String.Concat(id, vchar, chr, ver, curr)) AS usqlchecksum // Concatention has to be done the same way as in source
     FROM @ex;
@@ -29,4 +29,28 @@ DECLARE @get_md5 Func<string,string> =
 
 OUTPUT @ax
     TO "/output.csv" // Manual comparsion of hashes for now
+USING Outputters.Csv();
+
+
+@master =
+    EXTRACT master string // Single value
+    FROM "/masterhash.csv"
+    USING Extractors.Csv();
+
+@checksum_agg = // ARRAY_AGG cannot take queries :(
+    SELECT @get_md5(ARRAY_AGG(checksum).Aggregate((a, b) => a + b)) AS checksums
+    FROM @ex;
+
+@masters =
+   SELECT master,
+        checksums
+    FROM @master
+    CROSS JOIN @checksum_agg; // No other way to get at single values
+
+@masters_result =
+    SELECT master == checksums AS result
+    FROM @masters;
+
+OUTPUT @masters_result
+    TO "/masters.csv"
 USING Outputters.Csv();
